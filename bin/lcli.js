@@ -7,6 +7,7 @@ const SegfaultHandler = require('segfault-handler')
 const http = require("http")
 const WebSocketServer = require('websocket').server
 const { createProxyMiddleware } = require('http-proxy-middleware')
+const resolve = require('util').promisify(require('resolve'))
 
 const Dao = require("@live-change/dao")
 const DaoWebsocket = require("@live-change/dao-websocket")
@@ -79,6 +80,10 @@ function apiServerOptions(yargs) {
     describe: 'services config',
     type: 'string',
     default: process.env.API_SERVER_HOST || 'services.config.js'
+  })
+  yargs.option('initScript', {
+    description: 'run init script',
+    type: 'string'
   })
 }
 
@@ -179,7 +184,7 @@ function setupApiSockJs(httpServer, apiServer) {
 }
 
 async function setupApiServer(argv) {
-  const { services: config, withServices, updateServices, enableSessions } = argv
+  const { services: config, withServices, updateServices, enableSessions, initScript } = argv
 
   const services = new Services(config)
 
@@ -188,6 +193,11 @@ async function setupApiServer(argv) {
   await services.start(withServices
       ? { runCommands: true, handleEvents: true, indexSearch: true }
       : { runCommands: false, handleEvents: false, indexSearch: false })
+
+  if(argv.initScript) {
+    const initScript = require(await services.resolve(argv.initScript))
+    await initScript(services.getServicesObject())
+  }
 
   const apiServerConfig = {
     services: services.services,
