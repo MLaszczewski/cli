@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/live-change/cli",
   "dependencies": {
+    "@live-change/server": "^0.1.2",
     "@live-change/dao": "^0.3.3",
     "@live-change/dao-sockjs": "^0.2.0",
     "@live-change/db-server": "^0.4.80",

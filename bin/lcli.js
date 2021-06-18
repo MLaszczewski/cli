@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 require('dotenv').config()
 const express = require("express")
-const sockjs = require('sockjs')
 const path = require('path')
 const SegfaultHandler = require('segfault-handler')
 const http = require("http")
-const WebSocketServer = require('websocket').server
 const { createProxyMiddleware } = require('http-proxy-middleware')
-const resolve = require('util').promisify(require('resolve'))
 
-const Dao = require("@live-change/dao")
-const DaoWebsocket = require("@live-change/dao-websocket")
 const app = require("@live-change/framework").app()
 
-const Services = require('../lib/Services.js')
-const SsrServer = require('../lib/SsrServer.js')
-const DbServer = require('@live-change/db-server')
+const {
+
+  SsrServer,
+  
+  createLoopbackDao,
+  setupApiServer,
+  setupApiSockJs,
+  setupApiWs,
+  setupDbServer
+
+} = require("@live-change/server")
 
 process.on('unhandledRejection', (reason, p) => {
   console.log('Unhandled Rejection at: Promise', p, 'reason:', reason)
@@ -26,7 +29,6 @@ process.on('uncaughtException', function (err) {
 })
 
 SegfaultHandler.registerHandler("crash.log");
-
 
 function startOptions(yargs) {
   yargs.option('withServices', {
@@ -39,7 +41,7 @@ function startOptions(yargs) {
   })
   yargs.option('enableSessions', {
     type: 'boolean',
-    description: 'support session based data access'
+    description: 'enable session based data access'
   })
   yargs.option('withDb', {
     type: 'boolean',
@@ -79,7 +81,7 @@ function apiServerOptions(yargs) {
   yargs.option('services', {
     describe: 'services config',
     type: 'string',
-    default: process.env.API_SERVER_HOST || 'services.config.js'
+    default: 'server/services.config.js'
   })
   yargs.option('initScript', {
     description: 'run init script',
@@ -91,7 +93,7 @@ function ssrServerOptions(yargs) {
   yargs.option('ssrRoot', {
     describe: 'frontend root directory',
     type: 'string',
-    default: '.'
+    default: './front'
   })
   yargs.option('ssrPort', {
     describe: 'port to bind on',
@@ -110,125 +112,72 @@ function ssrServerOptions(yargs) {
 }
 
 const argv = require('yargs') // eslint-disable-line
-    .command('apiServer', 'start server', (yargs) => {
-      apiServerOptions(yargs)
-      startOptions(yargs)
-    }, (argv) => {
-      apiServer(argv)
+  .command('apiServer', 'start server', (yargs) => {
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, (argv) => {
+    apiServer(argv)
+  })
+  .command('devApiServer', 'shortcut for apiServer --withServices --updateServices', (yargs) => {
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, (argv) => {
+    apiServer({
+      ...argv,
+      withServices: true, updateServices: true
     })
-    .command('ssrServer', 'start ssr server', (yargs) => {
-      ssrServerOptions(yargs)
-      apiServerOptions(yargs)
-      startOptions(yargs)
-    }, (argv) => {
-      ssrServer(argv, false)
+  })
+  .command('memApiServer', 'shortcut for devApiServer --withDb --dbBackend mem --createDb', (yargs) => {
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, (argv) => {
+    apiServer({
+      ...argv,
+      withServices: true, updateServices: true,
+      withDb: true, dbBackend: 'mem', createDb: true
     })
-    .command('ssrDev', 'start ssr server in development mode', (yargs) => {
-      ssrServerOptions(yargs)
-      apiServerOptions(yargs)
-      startOptions(yargs)
-    }, (argv) => {
-      ssrServer(argv, true)
+  })
+  .command('ssrServer', 'start ssr server', (yargs) => {
+    ssrServerOptions(yargs)
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, (argv) => {
+    ssrServer(argv, false)
+  })
+  .command('ssrDev', 'start ssr server in development mode', (yargs) => {
+    ssrServerOptions(yargs)
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, (argv) => {
+    ssrServer(argv, true)
+  })
+  .command('dev', 'shortcut for ssrDev --withApi --withServices --updateServices', (yargs) => {
+    ssrServerOptions(yargs)
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, (argv) => {
+    ssrServer({
+      ...argv,
+      withApi: true, withServices: true, updateServices: true
     })
-    .option('verbose', {
-      alias: 'v',
-      type: 'boolean',
-      description: 'Run with verbose logging'
-    }).argv
+  })
+  .command('memDev', 'shortcut for dev --withDb --dbBackend mem --createDb', (yargs) => {
+    ssrServerOptions(yargs)
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, (argv) => {
+    ssrServer({
+      ...argv,
+      withApi: true, withServices: true, updateServices: true,
+      withDb: true, dbBackend: 'mem', createDb: true
+    })
+  })
+  .option('verbose', {
+    alias: 'v',
+    type: 'boolean',
+    description: 'Run with verbose logging'
+  }).argv
 /// TODO api.gen.js generation command
-
-function setupApiWs(httpServer, apiServer) {
-  const wsServer = new WebSocketServer({ httpServer, autoAcceptConnections: false })
-  wsServer.on("request",(request) => {
-    console.log("WS URI", request.httpRequest.url)
-    if(request.httpRequest.url != "/api/ws") return request.reject()
-    let serverConnection = new DaoWebsocket.server(request)
-    apiServer.handleConnection(serverConnection)
-  })
-}
-
-async function setupDbServer(argv) {
-  const { dbRoot, dbBackend, dbBackendUrl, dbSlowStart } = argv
-  console.info(`starting database in ${path.resolve(dbRoot)}`)
-  let server = new DbServer({
-    dbRoot,
-    backend: dbBackend,
-    backendUrl: dbBackendUrl,
-    slowStart: dbSlowStart,
-    temporary: dbBackend == "mem"
-  })
-
-  process.on('unhandledRejection', (reason, promise) => {
-    if(reason.stack && reason.stack.match(/\s(userCode:([a-z0-9_.\/-]+):([0-9]+):([0-9]+))\n/i)) {
-      server.handleUnhandledRejectionInQuery(reason, promise)
-    } 
-  })
-
-  await server.initialize()
-  console.info(`database initialized!`)
-
-  return server
-}
-
-function setupApiSockJs(httpServer, apiServer) {
-  const sockJsServer = sockjs.createServer({})
-  sockJsServer.on('connection', function (conn) {
-    if(!conn) {
-      console.error("NULL SOCKJS connection")
-      return;
-    }
-    console.log("SOCKJS connection")
-    apiServer.handleConnection(conn)
-  })
-  sockJsServer.installHandlers(httpServer, { prefix: '/api/sockjs' })
-}
-
-async function setupApiServer(argv) {
-  const { services: config, withServices, updateServices, enableSessions, initScript } = argv
-
-  const services = new Services(config)
-
-  await services.loadServices()
-  if(updateServices) await services.update()
-  await services.start(withServices
-      ? { runCommands: true, handleEvents: true, indexSearch: true }
-      : { runCommands: false, handleEvents: false, indexSearch: false })
-
-  if(argv.initScript) {
-    const initScript = require(await services.resolve(argv.initScript))
-    await initScript(services.getServicesObject())
-  }
-
-  const apiServerConfig = {
-    services: services.services,
-    //local, remote, <-- everything from services
-    local(credentials) {
-      const local = {
-        version: new Dao.SimpleDao({
-          values: {
-            version: {
-              observable() {
-                return new Dao.ObservableValue(process.env.VERSION)
-              },
-              async get() {
-                return process.env.VERSION
-              }
-            }
-          }
-        })
-      }
-      return local
-    },
-    shareDefinition: true,
-    logErrors: true
-  }
-
-  const apiServer = enableSessions
-      ? await app.createSessionApiServer(apiServerConfig)
-      : await app.createApiServer(apiServerConfig)
-
-  return apiServer
-}
 
 async function apiServer(argv) {
   const { apiPort, apiHost } = argv
@@ -245,31 +194,6 @@ async function apiServer(argv) {
   httpServer.listen(apiPort, apiHost)
   console.log('Listening on port ' + apiPort)
 }
-
-async function createLoopbackDao(credentials, daoFactory) {
-  const server = new Dao.ReactiveServer(daoFactory)
-  const loopback = new Dao.LoopbackConnection(credentials, server, {})
-  const dao = new Dao(credentials, {
-    remoteUrl: 'dao',
-    protocols: { local: null },
-    defaultRoute: {
-      type: "remote",
-      generator: Dao.ObservableList
-    },
-    connectionSettings: {
-      disconnectDebug: true,
-      logLevel: 10,
-    },
-  })
-  dao.connections.set('local:dao', loopback)
-  await loopback.initialize()
-  if(!loopback.connected) {
-    console.error("LOOPBACK NOT CONNECTED?!")
-    process.exit(1)
-  }
-  return dao
-}
-
 async function ssrServer(argv, dev) {
   const { ssrRoot, ssrPort, ssrHost, apiHost, apiPort } = argv
 
