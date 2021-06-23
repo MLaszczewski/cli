@@ -159,7 +159,7 @@ const argv = require('yargs') // eslint-disable-line
     ssrServer({
       ...argv,
       withApi: true, withServices: true, updateServices: true
-    })
+    }, true)
   })
   .command('memDev', 'shortcut for dev --withDb --dbBackend mem --createDb', (yargs) => {
     ssrServerOptions(yargs)
@@ -170,7 +170,7 @@ const argv = require('yargs') // eslint-disable-line
       ...argv,
       withApi: true, withServices: true, updateServices: true,
       withDb: true, dbBackend: 'mem', createDb: true
-    })
+    }, true)
   })
   .option('verbose', {
     alias: 'v',
