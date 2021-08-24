@@ -11,7 +11,7 @@ const app = require("@live-change/framework").app()
 const {
 
   SsrServer,
-  
+
   createLoopbackDao,
   setupApiServer,
   setupApiSockJs,
@@ -199,8 +199,9 @@ async function ssrServer(argv, dev) {
 
   const expressApp = express()
 
-  const manifest = dev ? null : require(path.resolve(ssrRoot,
-    'dist/client/ssr-manifest.json'))
+  //expressApp.use('/static', express.static(path.resolve(ssrRoot, 'public')))
+
+  const manifest = dev ? null : require(path.resolve(ssrRoot, 'dist/client/ssr-manifest.json'))
 
   if(!argv.withApi) {
     const apiServerHost = (argv.apiHost == '0.0.0.0' ? 'localhost' : argv.apiHost) + ':' + argv.apiPort
@@ -216,9 +217,11 @@ async function ssrServer(argv, dev) {
 
   let dbServer
   if(argv.withDb) {
-    dbServer = await setupDbServer(argv)   
-    app.dao.dispose()
-    app.dao = await createLoopbackDao('local', () => dbServer.createDao('local') )
+    dbServer = await setupDbServer(argv)
+    //app.dao.dispose()
+    const loopbackDao = await createLoopbackDao('local', () => dbServer.createDao('local'))
+    loopbackDao.prepareSource(app.dao.definition.database)
+    loopbackDao.prepareSource(app.dao.definition.store)
   }
 
   if(argv.createDb) {
