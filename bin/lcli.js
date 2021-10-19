@@ -109,6 +109,11 @@ function ssrServerOptions(yargs) {
     describe: 'start internal api server',
     type: 'boolean'
   })
+  yargs.option('sessionExpires', {
+    describe: 'session expires after (in minutes)',
+    type: 'number',
+    default: 30*24*60
+  })
 }
 
 const argv = require('yargs') // eslint-disable-line
@@ -195,7 +200,7 @@ async function apiServer(argv) {
   console.log('Listening on port ' + apiPort)
 }
 async function ssrServer(argv, dev) {
-  const { ssrRoot, ssrPort, ssrHost, apiHost, apiPort } = argv
+  const { ssrRoot, ssrPort, ssrHost, apiHost, apiPort, sessionExpires } = argv
 
   const expressApp = express()
 
@@ -250,7 +255,8 @@ async function ssrServer(argv, dev) {
       : {
         apiHost, apiPort
       }
-    )
+    ),
+    ...(sessionExpires ? { sessionExpires: sessionExpires * 60 * 1000 } : {})
   })
 
   await ssrServer.start()
