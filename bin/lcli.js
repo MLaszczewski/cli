@@ -16,7 +16,9 @@ const {
   setupApiServer,
   setupApiSockJs,
   setupApiWs,
-  setupDbServer
+  setupDbServer,
+  setupDbClient,
+  setupApp
 
 } = require("@live-change/server")
 
@@ -120,14 +122,16 @@ const argv = require('yargs') // eslint-disable-line
   .command('apiServer', 'start server', (yargs) => {
     apiServerOptions(yargs)
     startOptions(yargs)
-  }, (argv) => {
-    apiServer(argv)
+  }, async (argv) => {
+    await setupApp(argv)
+    await apiServer(argv)
   })
   .command('devApiServer', 'shortcut for apiServer --withServices --updateServices', (yargs) => {
     apiServerOptions(yargs)
     startOptions(yargs)
-  }, (argv) => {
-    apiServer({
+  }, async (argv) => {
+    await setupApp(argv)
+    await apiServer({
       ...argv,
       withServices: true, updateServices: true
     })
@@ -135,8 +139,9 @@ const argv = require('yargs') // eslint-disable-line
   .command('memApiServer', 'shortcut for devApiServer --withDb --dbBackend mem --createDb', (yargs) => {
     apiServerOptions(yargs)
     startOptions(yargs)
-  }, (argv) => {
-    apiServer({
+  }, async (argv) => {
+    await setupApp(argv)
+    await apiServer({
       ...argv,
       withServices: true, updateServices: true,
       withDb: true, dbBackend: 'mem', createDb: true
@@ -146,22 +151,25 @@ const argv = require('yargs') // eslint-disable-line
     ssrServerOptions(yargs)
     apiServerOptions(yargs)
     startOptions(yargs)
-  }, (argv) => {
-    ssrServer(argv, false)
+  }, async (argv) => {
+    await setupApp(argv)
+    await ssrServer(argv, false)
   })
   .command('ssrDev', 'start ssr server in development mode', (yargs) => {
     ssrServerOptions(yargs)
     apiServerOptions(yargs)
     startOptions(yargs)
-  }, (argv) => {
-    ssrServer(argv, true)
+  }, async (argv) => {
+    await setupApp(argv)
+    await ssrServer(argv, true)
   })
   .command('dev', 'shortcut for ssrDev --withApi --withServices --updateServices', (yargs) => {
     ssrServerOptions(yargs)
     apiServerOptions(yargs)
     startOptions(yargs)
-  }, (argv) => {
-    ssrServer({
+  }, async (argv) => {
+    await setupApp(argv)
+    await ssrServer({
       ...argv,
       withApi: true, withServices: true, updateServices: true
     }, true)
@@ -170,8 +178,9 @@ const argv = require('yargs') // eslint-disable-line
     ssrServerOptions(yargs)
     apiServerOptions(yargs)
     startOptions(yargs)
-  }, (argv) => {
-    ssrServer({
+  }, async (argv) => {
+    await setupApp(argv)
+    await ssrServer({
       ...argv,
       withApi: true, withServices: true, updateServices: true,
       withDb: true, dbBackend: 'mem', createDb: true
@@ -187,7 +196,7 @@ const argv = require('yargs') // eslint-disable-line
 async function apiServer(argv) {
   const { apiPort, apiHost } = argv
 
-  const apiServer = await setupApiServer(argv)
+  const apiServer = await setupApiServer(argv, dbServer)
 
   const expressApp = express()
 
@@ -220,15 +229,6 @@ async function ssrServer(argv, dev) {
     console.log("PROXY /api to", target)
   }
 
-  let dbServer
-  if(argv.withDb) {
-    dbServer = await setupDbServer(argv)
-    //app.dao.dispose()
-    const loopbackDao = await createLoopbackDao('local', () => dbServer.createDao('local'))
-    loopbackDao.prepareSource(app.dao.definition.database)
-    loopbackDao.prepareSource(app.dao.definition.store)
-  }
-
   if(argv.createDb) {
     const list = await app.dao.get(['database', 'databasesList'])
     console.log("EXISTING DATABASES", list)
@@ -240,7 +240,7 @@ async function ssrServer(argv, dev) {
 
   let apiServer
   if(argv.withApi) {
-    apiServer = await setupApiServer(argv, dbServer)
+    apiServer = await setupApiServer(argv)
   }
 
   const ssrServer = new SsrServer(expressApp, manifest, {
