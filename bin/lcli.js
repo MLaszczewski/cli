@@ -130,22 +130,24 @@ const argv = require('yargs') // eslint-disable-line
     apiServerOptions(yargs)
     startOptions(yargs)
   }, async (argv) => {
-    await setupApp(argv)
-    await apiServer({
+    argv = {
       ...argv,
       withServices: true, updateServices: true
-    })
+    }
+    await setupApp(argv)
+    await apiServer(argv)
   })
   .command('memApiServer', 'shortcut for devApiServer --withDb --dbBackend mem --createDb', (yargs) => {
     apiServerOptions(yargs)
     startOptions(yargs)
   }, async (argv) => {
-    await setupApp(argv)
-    await apiServer({
+    argv = {
       ...argv,
       withServices: true, updateServices: true,
       withDb: true, dbBackend: 'mem', createDb: true
-    })
+    }
+    await setupApp(argv)
+    await apiServer(argv)
   })
   .command('ssrServer', 'start ssr server', (yargs) => {
     ssrServerOptions(yargs)
@@ -168,23 +170,25 @@ const argv = require('yargs') // eslint-disable-line
     apiServerOptions(yargs)
     startOptions(yargs)
   }, async (argv) => {
-    await setupApp(argv)
-    await ssrServer({
+    argv = {
       ...argv,
       withApi: true, withServices: true, updateServices: true
-    }, true)
+    }
+    await setupApp(argv)
+    await ssrServer(argv, true)
   })
   .command('memDev', 'shortcut for dev --withDb --dbBackend mem --createDb', (yargs) => {
     ssrServerOptions(yargs)
     apiServerOptions(yargs)
     startOptions(yargs)
   }, async (argv) => {
-    await setupApp(argv)
-    await ssrServer({
+    argv = {
       ...argv,
       withApi: true, withServices: true, updateServices: true,
       withDb: true, dbBackend: 'mem', createDb: true
-    }, true)
+    }
+    await setupApp(argv)
+    await ssrServer(argv, true)
   })
   .option('verbose', {
     alias: 'v',
