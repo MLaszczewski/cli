@@ -1,6 +1,6 @@
 {
   "name": "@live-change/cli",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Live Change Framework - command line interface",
   "main": "index.js",
   "scripts": {
