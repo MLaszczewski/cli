@@ -28,7 +28,7 @@
     "@live-change/dao-sockjs": "^0.2.1",
     "@live-change/dao-websocket": "^0.3.2",
     "@live-change/db-server": "^0.4.82",
-    "@live-change/framework": "^0.5.8",
+    "@live-change/framework": "^0.5.10",
     "@live-change/server": "^0.1.16",
     "@live-change/vue3-ssr": "^0.1.7",
     "dotenv": "^10.0.0",
