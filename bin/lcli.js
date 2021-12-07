@@ -41,10 +41,6 @@ function startOptions(yargs) {
     type: 'boolean',
     description: 'update all services'
   })
-  yargs.option('enableSessions', {
-    type: 'boolean',
-    description: 'enable session based data access'
-  })
   yargs.option('withDb', {
     type: 'boolean',
     description: 'start local database'
