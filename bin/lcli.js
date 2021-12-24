@@ -114,7 +114,7 @@ const argv = require('yargs') // eslint-disable-line
     apiServerOptions(yargs)
     startOptions(yargs)
   }, async (argv) => {
-    await setupApp(argv)
+    await setupApp({ ...argv, uidBorders: '[]' })
     await apiServer(argv)
   })
   .command('devApiServer', 'shortcut for apiServer --withServices --updateServices', (yargs) => {
@@ -125,7 +125,7 @@ const argv = require('yargs') // eslint-disable-line
       ...argv,
       withServices: true, updateServices: true
     }
-    await setupApp(argv)
+    await setupApp({ ...argv, uidBorders: '[]' })
     await apiServer(argv)
   })
   .command('memApiServer', 'shortcut for devApiServer --withDb --dbBackend mem --createDb', (yargs) => {
@@ -137,7 +137,7 @@ const argv = require('yargs') // eslint-disable-line
       withServices: true, updateServices: true,
       withDb: true, dbBackend: 'mem', createDb: true
     }
-    await setupApp(argv)
+    await setupApp({ ...argv, uidBorders: '[]' })
     await apiServer(argv)
   })
   .command('ssrServer', 'start ssr server', (yargs) => {
@@ -145,16 +145,16 @@ const argv = require('yargs') // eslint-disable-line
     apiServerOptions(yargs)
     startOptions(yargs)
   }, async (argv) => {
-    await setupApp(argv)
-    await ssrServer(argv, false)
+    await setupApp({ ...argv, uidBorders: '[]' })
+    await ssrServer({ ...argv, uidBorders: '[]' }, false)
   })
   .command('ssrDev', 'start ssr server in development mode', (yargs) => {
     ssrServerOptions(yargs)
     apiServerOptions(yargs)
     startOptions(yargs)
   }, async (argv) => {
-    await setupApp(argv)
-    await ssrServer(argv, true)
+    await setupApp({ ...argv, uidBorders: '[]' })
+    await ssrServer({ ...argv, uidBorders: '[]' }, true)
   })
   .command('dev', 'shortcut for ssrDev --withApi --withServices --updateServices', (yargs) => {
     ssrServerOptions(yargs)
@@ -165,8 +165,8 @@ const argv = require('yargs') // eslint-disable-line
       ...argv,
       withApi: true, withServices: true, updateServices: true
     }
-    await setupApp(argv)
-    await ssrServer(argv, true)
+    await setupApp({ ...argv, uidBorders: '[]' })
+    await ssrServer({ ...argv, uidBorders: '[]' }, true)
   })
   .command('memDev', 'shortcut for dev --withDb --dbBackend mem --createDb', (yargs) => {
     ssrServerOptions(yargs)
@@ -178,8 +178,8 @@ const argv = require('yargs') // eslint-disable-line
       withApi: true, withServices: true, updateServices: true,
       withDb: true, dbBackend: 'mem', createDb: true
     }
-    await setupApp(argv)
-    await ssrServer(argv, true)
+    await setupApp({ ...argv, uidBorders: '[]' })
+    await ssrServer({ ...argv, uidBorders: '[]' }, true)
   })
   .option('verbose', {
     alias: 'v',
