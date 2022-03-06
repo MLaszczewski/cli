@@ -63,6 +63,10 @@ function startOptions(yargs) {
     type: 'boolean',
     description: 'create database if not exists'
   })
+  yargs.option('dbAccess', {
+    type: 'boolean',
+    description: 'give database access to frontend(only for development and db-admin)'
+  })
 }
 
 function apiServerOptions(yargs) {
@@ -181,6 +185,19 @@ const argv = require('yargs') // eslint-disable-line
     await setupApp({ ...argv, uidBorders: '[]' })
     await ssrServer({ ...argv, uidBorders: '[]' }, true)
   })
+  .command('localDev', 'shortcut for dev --withDb --createDb', (yargs) => {
+    ssrServerOptions(yargs)
+    apiServerOptions(yargs)
+    startOptions(yargs)
+  }, async (argv) => {
+    argv = {
+      ...argv,
+      withApi: true, withServices: true, updateServices: true,
+      withDb: true, createDb: true
+    }
+    await setupApp({ ...argv, uidBorders: '[]' })
+    await ssrServer({ ...argv, uidBorders: '[]' }, true)
+  })
   .option('verbose', {
     alias: 'v',
     type: 'boolean',
@@ -228,8 +245,8 @@ async function ssrServer(argv, dev) {
 
   if(argv.createDb) {
     const list = await app.dao.get(['database', 'databasesList'])
-    console.log("EXISTING DATABASES", list)
-    console.log("CREATE DATABASE!")
+    console.log("existing databases:", list.join(', '))
+    console.log("creating database", app.databaseName)
     await app.dao.request(['database', 'createDatabase'], app.databaseName, {
       storage: { noMetaSync: true, noSync: true }
     }).catch(err => 'exists')

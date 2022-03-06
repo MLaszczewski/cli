@@ -29,7 +29,7 @@
     "@live-change/dao-websocket": "^0.3.2",
     "@live-change/db-server": "^0.4.82",
     "@live-change/framework": "^0.5.10",
-    "@live-change/server": "^0.1.17",
+    "@live-change/server": "^0.1.21",
     "@live-change/vue3-ssr": "^0.1.7",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
